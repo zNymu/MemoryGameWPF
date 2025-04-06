@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -8,7 +7,6 @@ using System.Drawing;
 using MemoryGame.Commands;
 using MemoryGame.Models;
 using MemoryGame.Services;
-using System.Threading.Tasks;
 
 namespace MemoryGame.ViewModels
 {
@@ -21,7 +19,6 @@ namespace MemoryGame.ViewModels
         private bool _isCreatingNewUser;
         private bool _isLoading = true;
 
-        // Make this property more robust to handle potential null issues
         public bool IsUserInfoVisible => !_isCreatingNewUser;
 
         public ObservableCollection<UserModel> Users { get; private set; }
@@ -33,7 +30,6 @@ namespace MemoryGame.ViewModels
             {
                 if (SetProperty(ref _selectedUser, value))
                 {
-                    // Use explicit cast to ensure command can be updated
                     ((RelayCommand)PlayCommand)?.RaiseCanExecuteChanged();
                     ((RelayCommand)DeleteUserCommand)?.RaiseCanExecuteChanged();
                 }
@@ -71,7 +67,6 @@ namespace MemoryGame.ViewModels
             {
                 if (SetProperty(ref _isCreatingNewUser, value))
                 {
-                    // Important: ensure UI updates when this changes
                     OnPropertyChanged(nameof(IsUserInfoVisible));
                 }
             }
@@ -173,7 +168,6 @@ namespace MemoryGame.ViewModels
 
                 if (string.IsNullOrEmpty(defaultImagePath))
                 {
-                    // Create app data folder if it doesn't exist
                     string appDataFolder = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                         "MemoryGame", "UserImages");
@@ -183,7 +177,6 @@ namespace MemoryGame.ViewModels
                         Directory.CreateDirectory(appDataFolder);
                     }
 
-                    // Create a default image
                     string defaultImageFilePath = Path.Combine(appDataFolder, "default_user.png");
                     if (!File.Exists(defaultImageFilePath))
                     {
@@ -241,7 +234,6 @@ namespace MemoryGame.ViewModels
 
                         SelectedUser = Users.Count > 0 ? Users[0] : null;
 
-                        // Fix: Check if SelectedUser is null before accessing Username
                         if (SelectedUser != null)
                         {
                             MessageBox.Show($"User '{username}' has been deleted.", "User Deleted", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -261,12 +253,10 @@ namespace MemoryGame.ViewModels
 
         private void ShowNewUserForm()
         {
-            // Debug message to check if this method is being called
             Console.WriteLine("ShowNewUserForm called");
 
             IsCreatingNewUser = true;
 
-            // Always select a random image when showing the form
             SelectRandomImage();
         }
 
@@ -286,37 +276,31 @@ namespace MemoryGame.ViewModels
 
         private void SelectRandomImage()
         {
-            string randomImage = _userService.GetRandomDefaultImagePath();
-            if (!string.IsNullOrEmpty(randomImage))
-            {
-                NewUserImagePath = randomImage;
+            var basePath = Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)?
+                .Parent?.Parent?.Parent?.FullName;
 
-                // Debug message to show the selected image path
-                Console.WriteLine($"Random image selected: {randomImage}");
+            if (basePath == null)
+            {
+                MessageBox.Show("Could not locate project directory structure",
+                              "Path Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string avatarsDir = Path.Combine(basePath, "Assets", "Avatars");
+            string[] imageFiles = Directory.GetFiles(avatarsDir, "*.*", SearchOption.TopDirectoryOnly)
+                .Where(file => file.EndsWith(".png") || file.EndsWith(".jpg") || file.EndsWith(".jpeg"))
+                .ToArray();
+
+            if (imageFiles.Length > 0)
+            {
+                Random random = new Random();
+                NewUserImagePath = imageFiles[random.Next(imageFiles.Length)];
             }
             else
             {
-                MessageBox.Show("No avatar images found in the Assets/Avatars folder. Please create this directory and add some images.",
-                    "No Avatars Available", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"No avatars found in: {avatarsDir}\nPlease add images to this directory.",
+                              "No Avatars", MessageBoxButton.OK, MessageBoxImage.Warning);
 
-                // Try to create the directory structure
-                string assetsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
-                string avatarsDir = Path.Combine(assetsDir, "Avatars");
-
-                if (!Directory.Exists(avatarsDir))
-                {
-                    try
-                    {
-                        Directory.CreateDirectory(avatarsDir);
-                        MessageBox.Show($"Created directory: {avatarsDir}\nPlease add some avatar images there.",
-                            "Directory Created", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Failed to create avatars directory: {ex.Message}",
-                            "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
             }
         }
 
