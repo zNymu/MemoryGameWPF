@@ -122,8 +122,8 @@ namespace MemoryGame.ViewModels
             _userService = userService;
 
 
-            _imagesBasePath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory, "Images");
+            _imagesBasePath = Path.Combine(Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent.Parent.FullName, "Assets", "Images");
+
 
             SelectCategoryCommand = new RelayCommand(SelectCategory);
             NewGameCommand = new RelayCommand(StartNewGame);
@@ -322,7 +322,7 @@ namespace MemoryGame.ViewModels
 
         private void ShowAbout(object parameter)
         {
-            MessageBox.Show("Memory Game\nDeveloped by: Your Name\nEmail: your.email@example.com\nGroup: Your Group\nSpecialization: Your Specialization",
+            MessageBox.Show("WPF Memory Game\nDeveloped by: Gelegram Alexandru\nGroup: LF232",
                 "About", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
