@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -7,6 +8,7 @@ using System.Drawing;
 using MemoryGame.Commands;
 using MemoryGame.Models;
 using MemoryGame.Services;
+using System.Threading.Tasks;
 
 namespace MemoryGame.ViewModels
 {
@@ -19,6 +21,9 @@ namespace MemoryGame.ViewModels
         private bool _isCreatingNewUser;
         private bool _isLoading = true;
 
+        // Make this property more robust to handle potential null issues
+        public bool IsUserInfoVisible => !_isCreatingNewUser;
+
         public ObservableCollection<UserModel> Users { get; private set; }
 
         public UserModel SelectedUser
@@ -28,8 +33,9 @@ namespace MemoryGame.ViewModels
             {
                 if (SetProperty(ref _selectedUser, value))
                 {
-                    ((RelayCommand)PlayCommand).RaiseCanExecuteChanged();
-                    ((RelayCommand)DeleteUserCommand).RaiseCanExecuteChanged();
+                    // Use explicit cast to ensure command can be updated
+                    ((RelayCommand)PlayCommand)?.RaiseCanExecuteChanged();
+                    ((RelayCommand)DeleteUserCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -41,7 +47,7 @@ namespace MemoryGame.ViewModels
             {
                 if (SetProperty(ref _newUsername, value))
                 {
-                    ((RelayCommand)CreateUserCommand).RaiseCanExecuteChanged();
+                    ((RelayCommand)CreateUserCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -53,7 +59,7 @@ namespace MemoryGame.ViewModels
             {
                 if (SetProperty(ref _newUserImagePath, value))
                 {
-                    ((RelayCommand)CreateUserCommand).RaiseCanExecuteChanged();
+                    ((RelayCommand)CreateUserCommand)?.RaiseCanExecuteChanged();
                 }
             }
         }
@@ -61,7 +67,14 @@ namespace MemoryGame.ViewModels
         public bool IsCreatingNewUser
         {
             get => _isCreatingNewUser;
-            set => SetProperty(ref _isCreatingNewUser, value);
+            set
+            {
+                if (SetProperty(ref _isCreatingNewUser, value))
+                {
+                    // Important: ensure UI updates when this changes
+                    OnPropertyChanged(nameof(IsUserInfoVisible));
+                }
+            }
         }
 
         public bool IsLoading
@@ -160,6 +173,7 @@ namespace MemoryGame.ViewModels
 
                 if (string.IsNullOrEmpty(defaultImagePath))
                 {
+                    // Create app data folder if it doesn't exist
                     string appDataFolder = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                         "MemoryGame", "UserImages");
@@ -169,6 +183,7 @@ namespace MemoryGame.ViewModels
                         Directory.CreateDirectory(appDataFolder);
                     }
 
+                    // Create a default image
                     string defaultImageFilePath = Path.Combine(appDataFolder, "default_user.png");
                     if (!File.Exists(defaultImageFilePath))
                     {
@@ -220,12 +235,21 @@ namespace MemoryGame.ViewModels
                 {
                     try
                     {
-                        await _userService.DeleteUserAsync(SelectedUser.Username);
+                        string username = SelectedUser.Username;
+                        await _userService.DeleteUserAsync(username);
                         Users.Remove(SelectedUser);
 
                         SelectedUser = Users.Count > 0 ? Users[0] : null;
 
-                        MessageBox.Show($"User '{SelectedUser.Username}' has been deleted.", "User Deleted", MessageBoxButton.OK, MessageBoxImage.Information);
+                        // Fix: Check if SelectedUser is null before accessing Username
+                        if (SelectedUser != null)
+                        {
+                            MessageBox.Show($"User '{username}' has been deleted.", "User Deleted", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show($"User '{username}' has been deleted. No users remaining.", "User Deleted", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -237,8 +261,12 @@ namespace MemoryGame.ViewModels
 
         private void ShowNewUserForm()
         {
+            // Debug message to check if this method is being called
+            Console.WriteLine("ShowNewUserForm called");
+
             IsCreatingNewUser = true;
 
+            // Always select a random image when showing the form
             SelectRandomImage();
         }
 
@@ -262,11 +290,33 @@ namespace MemoryGame.ViewModels
             if (!string.IsNullOrEmpty(randomImage))
             {
                 NewUserImagePath = randomImage;
+
+                // Debug message to show the selected image path
+                Console.WriteLine($"Random image selected: {randomImage}");
             }
             else
             {
-                MessageBox.Show("No avatar images found in the Assets/Avatars folder.",
+                MessageBox.Show("No avatar images found in the Assets/Avatars folder. Please create this directory and add some images.",
                     "No Avatars Available", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                // Try to create the directory structure
+                string assetsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets");
+                string avatarsDir = Path.Combine(assetsDir, "Avatars");
+
+                if (!Directory.Exists(avatarsDir))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(avatarsDir);
+                        MessageBox.Show($"Created directory: {avatarsDir}\nPlease add some avatar images there.",
+                            "Directory Created", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Failed to create avatars directory: {ex.Message}",
+                            "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
             }
         }
 
