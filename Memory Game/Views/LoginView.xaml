@@ -1,0 +1,170 @@
+﻿<Window x:Class="MemoryGame.Views.LoginView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression.blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MemoryGame.Views"
+        xmlns:vm="clr-namespace:MemoryGame.ViewModels"
+        mc:Ignorable="d"
+        Title="Memory Game - Login" Height="500" Width="700"
+        WindowStartupLocation="CenterScreen"
+        Background="#F5F5F5">
+
+	<Window.Resources>
+		<BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+		<Style x:Key="ActionButton" TargetType="Button">
+			<Setter Property="Padding" Value="15,8" />
+			<Setter Property="Margin" Value="5" />
+			<Setter Property="Foreground" Value="White" />
+			<Setter Property="Template">
+				<Setter.Value>
+					<ControlTemplate TargetType="Button">
+						<Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+							<ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+						</Border>
+					</ControlTemplate>
+				</Setter.Value>
+			</Setter>
+		</Style>
+	</Window.Resources>
+
+	<Border BorderThickness="0" Margin="15" CornerRadius="8" Background="White">
+		<Grid>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+				<RowDefinition Height="Auto"/>
+			</Grid.RowDefinitions>
+
+			<Border Grid.Row="0" Background="#6200EE" CornerRadius="8,8,0,0">
+				<TextBlock Text="Memory Game" FontSize="28" FontWeight="Bold"
+                         Foreground="White" HorizontalAlignment="Center" Padding="20" />
+			</Border>
+
+			<Grid Grid.Row="1" Margin="20,15">
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="1*"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="1*"/>
+				</Grid.ColumnDefinitions>
+
+				<DockPanel Grid.Column="0">
+					<TextBlock Text="Select User" FontSize="16" FontWeight="SemiBold" DockPanel.Dock="Top" Margin="0,0,0,10"/>
+					<ListView ItemsSource="{Binding Users}"
+                          SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
+                          BorderThickness="1" BorderBrush="#E0E0E0">
+						<ListView.ItemTemplate>
+							<DataTemplate>
+								<Grid>
+									<Grid.ColumnDefinitions>
+										<ColumnDefinition Width="Auto"/>
+										<ColumnDefinition Width="*"/>
+									</Grid.ColumnDefinitions>
+									<Border Grid.Column="0" Width="40" Height="40" CornerRadius="20" Margin="0,0,10,0">
+										<Border.Background>
+											<ImageBrush ImageSource="{Binding ImagePath}" Stretch="UniformToFill"/>
+										</Border.Background>
+									</Border>
+									<TextBlock Grid.Column="1" Text="{Binding Username}"
+                                           FontSize="14" VerticalAlignment="Center"/>
+								</Grid>
+							</DataTemplate>
+						</ListView.ItemTemplate>
+						<ListView.ItemContainerStyle>
+							<Style TargetType="ListViewItem">
+								<Setter Property="Padding" Value="10,8"/>
+								<Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+							</Style>
+						</ListView.ItemContainerStyle>
+					</ListView>
+				</DockPanel>
+
+				<Rectangle Grid.Column="1" Width="1" Fill="#E0E0E0" Margin="15,0"/>
+
+				<Grid Grid.Column="2">
+					
+					<Grid x:Name="CreateUserPanel" Visibility="{Binding IsCreatingNewUser, Converter={StaticResource BoolToVis}}" d:Visibility="Collapsed">
+						<StackPanel>
+							<TextBlock Text="Create New User" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,15"/>
+
+							<TextBlock Text="Username" Margin="0,0,0,5"/>
+							<Border BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="4" Margin="0,0,0,15">
+								<TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}"
+										 BorderThickness="0" Padding="8,5"/>
+							</Border>
+
+							<TextBlock Text="Avatar" Margin="0,0,0,5"/>
+							<Grid Margin="0,0,0,10">
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="Auto"/>
+									<ColumnDefinition Width="*"/>
+								</Grid.ColumnDefinitions>
+
+								<Border Grid.Column="0" Width="80" Height="80" BorderThickness="1" BorderBrush="#E0E0E0" CornerRadius="4">
+									<Image Source="{Binding NewUserImagePath, FallbackValue='Assets/default_avatar.png'}"
+										   Stretch="Uniform" Margin="5"/>
+								</Border>
+
+								<StackPanel Grid.Column="1" Margin="10,0,0,0">
+									<Button Content="Browse" Command="{Binding BrowseImageCommand}"
+											Style="{StaticResource ActionButton}"
+											Background="#03A9F4" Margin="0,0,0,5"/>
+									<Button Content="Random Avatar" Command="{Binding SelectRandomImageCommand}"
+											Style="{StaticResource ActionButton}"
+											Background="#FF9800"/>
+								</StackPanel>
+							</Grid>
+
+							<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+								<Button Content="Cancel" Command="{Binding CancelCreateUserCommand}"
+										Style="{StaticResource ActionButton}" Background="#9E9E9E"/>
+								<Button Content="Create" Command="{Binding CreateUserCommand}"
+										Style="{StaticResource ActionButton}" Background="#4CAF50"/>
+							</StackPanel>
+						</StackPanel>
+					</Grid>
+
+					<Grid x:Name="UserInfoPanel" Visibility="{Binding IsCreatingNewUser, Converter={StaticResource BoolToVis}, ConverterParameter=inverse}" d:Visibility="Visible">
+						<StackPanel>
+							<TextBlock Text="User Information" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,15"/>
+
+							<Border Width="120" Height="120" BorderThickness="1" BorderBrush="#E0E0E0"
+									CornerRadius="60" HorizontalAlignment="Center" Margin="0,10,0,15">
+								<Border.Background>
+									<ImageBrush ImageSource="{Binding SelectedUser.ImagePath, FallbackValue='Assets/default_avatar.png'}"
+												Stretch="UniformToFill"/>
+								</Border.Background>
+							</Border>
+
+							<TextBlock Text="{Binding SelectedUser.Username, TargetNullValue='No User Selected'}"
+									   FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+
+							<StackPanel HorizontalAlignment="Center" Margin="0,0,0,15">
+								<TextBlock Text="{Binding SelectedUser.GamesPlayed, StringFormat=Games Played: {0}, TargetNullValue=0}"
+										   HorizontalAlignment="Center" Margin="0,2"/>
+								<TextBlock Text="{Binding SelectedUser.GamesWon, StringFormat=Games Won: {0}, TargetNullValue=0}"
+										   HorizontalAlignment="Center" Margin="0,2"/>
+							</StackPanel>
+
+							<Button Content="Create New User" Command="{Binding ShowNewUserFormCommand}"
+									Style="{StaticResource ActionButton}" Background="#03A9F4"
+									HorizontalAlignment="Center"/>
+						</StackPanel>
+					</Grid>
+
+				</Grid>
+			</Grid>
+
+			<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+				<Button Content="Delete User" Command="{Binding DeleteUserCommand}"
+                    Style="{StaticResource ActionButton}" Background="#F44336"/>
+				<Button Content="Play Game" Command="{Binding PlayCommand}"
+                    Style="{StaticResource ActionButton}" Background="#4CAF50"
+                    Width="120"/>
+			</StackPanel>
+		</Grid>
+	</Border>
+</Window>

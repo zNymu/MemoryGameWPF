@@ -1,0 +1,125 @@
+﻿<Window x:Class="MemoryGame.Views.GameView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MemoryGame.Views"
+        xmlns:vm="clr-namespace:MemoryGame.ViewModels"
+        mc:Ignorable="d"
+        Title="Memory Game" Height="600" Width="800"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <Style x:Key="CardButton" TargetType="Button">
+            <Setter Property="Width" Value="100"/>
+            <Setter Property="Height" Value="100"/>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="File">
+                <MenuItem Header="Category">
+                    <MenuItem Header="Drinks" Command="{Binding SelectCategoryCommand}" CommandParameter="Drinks"/>
+                    <MenuItem Header="Faces" Command="{Binding SelectCategoryCommand}" CommandParameter="Faces"/>
+                    <MenuItem Header="Characters" Command="{Binding SelectCategoryCommand}" CommandParameter="Characters"/>
+                </MenuItem>
+                <MenuItem Header="New Game" Command="{Binding NewGameCommand}"/>
+                <MenuItem Header="Open Game" Command="{Binding OpenGameCommand}"/>
+                <MenuItem Header="Save Game" Command="{Binding SaveGameCommand}"/>
+                <MenuItem Header="Statistics" Command="{Binding StatisticsCommand}"/>
+                <Separator/>
+                <MenuItem Header="Exit" Command="{Binding ExitCommand}"/>
+            </MenuItem>
+            <MenuItem Header="Options">
+                <MenuItem Header="Standard (4x4)" Command="{Binding SetGameModeCommand}" CommandParameter="Standard" IsCheckable="True" IsChecked="{Binding IsStandardMode}"/>
+                <MenuItem Header="Custom" Command="{Binding SetGameModeCommand}" CommandParameter="Custom" IsCheckable="True" IsChecked="{Binding IsCustomMode}"/>
+            </MenuItem>
+            <MenuItem Header="Help">
+                <MenuItem Header="About" Command="{Binding AboutCommand}"/>
+            </MenuItem>
+        </Menu>
+
+        <Border DockPanel.Dock="Top" Background="#F0F0F0" Padding="10,5">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock Text="Player: " FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding CurrentUser.Username}"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <TextBlock Text="Time Left: " FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding TimeLeft}" MinWidth="60"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border DockPanel.Dock="Top" Background="#F0F0F0" Padding="10,5"
+                Visibility="{Binding IsCustomMode, Converter={StaticResource BoolToVis}}">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock Text="Rows:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox ItemsSource="{Binding AvailableDimensions}" SelectedItem="{Binding CustomRows}" Width="50" Margin="0,0,15,0"/>
+
+                <TextBlock Text="Columns:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <ComboBox ItemsSource="{Binding AvailableDimensions}" SelectedItem="{Binding CustomColumns}" Width="50" Margin="0,0,15,0"/>
+
+                <TextBlock Text="Game Time (seconds):" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox Text="{Binding GameTimeInSeconds}" Width="60" Margin="0,0,15,0"/>
+
+                <Button Content="Apply" Command="{Binding ApplyCustomSettingsCommand}" Padding="10,2"/>
+            </StackPanel>
+        </Border>
+
+        <Border Padding="10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Select a category and start a new game" 
+                         FontSize="18" HorizontalAlignment="Center" Margin="0,50,0,0"
+                         Visibility="{Binding IsGameActive, Converter={StaticResource BoolToVis}, ConverterParameter=true}"/>
+
+                <ItemsControl Grid.Row="1" ItemsSource="{Binding GameCards}" 
+                            Visibility="{Binding IsGameActive, Converter={StaticResource BoolToVis}}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <UniformGrid Rows="{Binding Rows}" Columns="{Binding Columns}" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Style="{StaticResource CardButton}" 
+                                  Command="{Binding DataContext.SelectCardCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" 
+                                  CommandParameter="{Binding}">
+                                <Image Source="{Binding CurrentImagePath}" Stretch="Uniform" Margin="5"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
+        </Border>
+    </DockPanel>
+</Window>
