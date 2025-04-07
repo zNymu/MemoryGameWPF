@@ -86,7 +86,7 @@ namespace MemoryGame.ViewModels
         public ICommand CreateUserCommand { get; }
         public ICommand CancelCreateUserCommand { get; }
 
-        public event Action<UserModel> PlayRequested;
+        public event Action<UserModel>  PlayRequested;
 
         public LoginViewModel(UserService userService)
         {

@@ -6,12 +6,14 @@ using System.Windows.Input;
 using MemoryGame.Models;
 using MemoryGame.Commands;
 using MemoryGame.Services;
+using MemoryGame.Views;
 
 namespace MemoryGame.ViewModels
 {
     public class GameViewModel : ViewModelBase
     {
         private readonly UserService _userService;
+        private readonly GameSaveService _gameSaveService;
         private readonly string _imagesBasePath;
         private string _selectedCategory = "Drinks";
         private bool _isStandardMode = true;
@@ -120,10 +122,9 @@ namespace MemoryGame.ViewModels
         {
             _currentUser = currentUser;
             _userService = userService;
-
+            _gameSaveService = new GameSaveService();
 
             _imagesBasePath = Path.Combine(Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).Parent.Parent.Parent.FullName, "Assets", "Images");
-
 
             SelectCategoryCommand = new RelayCommand(SelectCategory);
             NewGameCommand = new RelayCommand(StartNewGame);
@@ -224,25 +225,234 @@ namespace MemoryGame.ViewModels
             IsGameActive = true;
         }
 
+        private void LoadGame(GameSaveModel savedGame)
+        {
+            try
+            {
+                StopTimer();
+
+                SelectedCategory = savedGame.Category;
+                Rows = savedGame.Rows;
+                Columns = savedGame.Columns;
+                GameTimeInSeconds = savedGame.TotalGameTimeInSeconds;
+                _remainingSeconds = savedGame.RemainingTimeInSeconds;
+
+                if (Rows == 4 && Columns == 4)
+                {
+                    IsStandardMode = true;
+                    IsCustomMode = false;
+                }
+                else
+                {
+                    IsStandardMode = false;
+                    IsCustomMode = true;
+                    CustomRows = Rows;
+                    CustomColumns = Columns;
+                }
+
+                GameCards.Clear();
+
+                var sortedCards = savedGame.Cards
+                    .OrderBy(c => c.GridRow)
+                    .ThenBy(c => c.GridColumn)
+                    .ToList();
+
+                string backImagePath = Path.Combine(_imagesBasePath, "back.png");
+
+                foreach (var savedCard in sortedCards)
+                {
+                    var card = new CardModel
+                    {
+                        Id = savedCard.Id,
+                        FrontImagePath = savedCard.FrontImagePath,
+                        BackImagePath = backImagePath,
+                        IsFlipped = savedCard.IsFlipped,
+                        IsMatched = savedCard.IsMatched
+                    };
+
+                    card.CurrentImagePath = savedCard.IsFlipped ? card.FrontImagePath : card.BackImagePath;
+
+                    GameCards.Add(card);
+                }
+
+                _flippedCards.Clear();
+
+                UpdateTimeDisplay();
+
+                StartTimer();
+
+                IsGameActive = true;
+
+                MessageBox.Show("Game loaded successfully!", "Load Game", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load game: {ex.Message}", "Load Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void OpenGame(object parameter)
         {
-            MessageBox.Show("Open Game functionality will be implemented.", "Open Game");
+            StopTimer();
+
+            try
+            {
+                if (IsGameActive)
+                {
+                    MessageBoxResult result = MessageBox.Show(
+                        "Do you want to save the current game before opening another one?",
+                        "Save Current Game",
+                        MessageBoxButton.YesNoCancel,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        SaveGame(null);
+                    }
+                    else if (result == MessageBoxResult.Cancel)
+                    {
+                        StartTimer();
+                        return;
+                    }
+                }
+
+                var openGameWindow = new OpenGameView(CurrentUser, this);
+
+                openGameWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+                bool? dialogResult = openGameWindow.ShowDialog();
+
+                if (dialogResult == true && openGameWindow.SelectedGame != null)
+                {
+                    LoadGame(openGameWindow.SelectedGame);
+                }
+                else
+                {
+                    if (IsGameActive)
+                    {
+                        StartTimer();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to open game: {ex.Message}", "Open Game Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+                if (IsGameActive)
+                {
+                    StartTimer();
+                }
+            }
         }
 
         private void SaveGame(object parameter)
         {
-            MessageBox.Show("Save Game functionality will be implemented.", "Save Game");
+            if (!IsGameActive)
+            {
+                MessageBox.Show("No active game to save.", "Save Game", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            StopTimer();
+
+            try
+            {
+                var flippedButUnmatchedCards = GameCards.Where(c => c.IsFlipped && !c.IsMatched).ToList();
+
+                if (flippedButUnmatchedCards.Count % 2 != 0)
+                {
+                    foreach (var card in flippedButUnmatchedCards)
+                    {
+                        card.IsFlipped = false;
+                    }
+                    _flippedCards.Clear();
+
+                    MessageBox.Show("Unmatched flipped cards have been reset to ensure a valid game state.",
+                                   "Save Game", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                var gameSave = new GameSaveModel
+                {
+                    Username = CurrentUser.Username,
+                    Category = SelectedCategory,
+                    Rows = Rows,
+                    Columns = Columns,
+                    TotalGameTimeInSeconds = GameTimeInSeconds,
+                    RemainingTimeInSeconds = _remainingSeconds,
+                    SaveDateTime = DateTime.Now,
+                    Cards = new List<SavedCardModel>()
+                };
+
+                for (int i = 0; i < GameCards.Count; i++)
+                {
+                    var card = GameCards[i];
+                    gameSave.Cards.Add(new SavedCardModel
+                    {
+                        Id = card.Id,
+                        FrontImagePath = card.FrontImagePath,
+                        IsMatched = card.IsMatched,
+                        IsFlipped = card.IsFlipped,
+                        GridRow = i / Columns,
+                        GridColumn = i % Columns
+                    });
+                }
+
+                _gameSaveService.SaveGameAsync(gameSave).ContinueWith(task =>
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        if (task.IsCompletedSuccessfully)
+                        {
+                            MessageBox.Show("Game saved successfully.", "Save Game", MessageBoxButton.OK, MessageBoxImage.Information);
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Failed to save game: {task.Exception?.InnerException?.Message}",
+                                "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        }
+
+                        if (IsGameActive && _gameTimer == null)
+                        {
+                            StartTimer();
+                        }
+                    });
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to save game: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                if (IsGameActive && _gameTimer == null)
+                {
+                    StartTimer();
+                }
+            }
         }
 
         private void ShowStatistics(object parameter)
         {
-            MessageBox.Show("Statistics functionality will be implemented.", "Statistics");
+            StopTimer();
+
+            try
+            {
+                var statisticsWindow = new StatisticsView();
+                statisticsWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                statisticsWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to show statistics: {ex.Message}", "Statistics Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            if (IsGameActive)
+            {
+                StartTimer();
+            }
         }
 
         private void Exit(object parameter)
         {
             StopTimer();
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            Application.Current.Shutdown();
         }
 
         private void SetGameMode(object parameter)
@@ -328,6 +538,7 @@ namespace MemoryGame.ViewModels
 
         private void StartTimer()
         {
+            StopTimer();
             _gameTimer = new System.Timers.Timer(1000);
             _gameTimer.Elapsed += GameTimer_Elapsed;
             _gameTimer.Start();
@@ -342,6 +553,9 @@ namespace MemoryGame.ViewModels
                 _gameTimer.Dispose();
                 _gameTimer = null;
             }
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
 
         private void GameTimer_Elapsed(object sender, ElapsedEventArgs e)
